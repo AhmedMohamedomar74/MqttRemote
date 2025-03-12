@@ -6,6 +6,7 @@
 #include <IRsend.h>
 #include <IRutils.h>
 #include <ArduinoJson.h>
+#include "MQTTManager.h"
 
 class IRModule {
 public:
@@ -16,6 +17,9 @@ public:
     void handleLoop();
     void startListening();
     void transmitStoredSignal();
+
+    // Change the return type to String
+    String getJsonCommand();
 
 private:
     IRrecv* irrecv;

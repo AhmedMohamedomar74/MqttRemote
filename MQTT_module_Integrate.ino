@@ -1,6 +1,12 @@
 #include "WiFiManager.h"
 #include "MQTTManager.h"
 #include "WebServerManager.h"
+#include "IRModule.h"
+
+#define RECV_PIN D3
+#define SEND_PIN D2
+
+IRModule irModule(RECV_PIN, SEND_PIN);
 
 void setup() {
   Serial.begin(9600);
@@ -10,6 +16,8 @@ void setup() {
 
   // Initialize WebServerManager
   WebServerManager::begin();
+
+  irModule.begin();
 
   Serial.println("AP started");
   Serial.println("IP address: " + WiFi.softAPIP().toString());
@@ -23,9 +31,14 @@ void loop() {
   if (WebServerManager::isConfigReceived() && !MQTTManager::isConnected()) {
     MQTTManager::reconnect();
   }
-  if (MQTTManager::isConnected())
-  {
-    MQTTManager::publish("learn/IR","Hellow From ESP8266");
-  }
   MQTTManager::loop();
+  irModule.handleLoop();
+  if (Mqtt_topic_status == Req) {
+    irModule.startListening();
+    Mqtt_topic_status = Not_Recieved;
+  }
+  else if (Mqtt_topic_status == Execute) {
+    irModule.transmitStoredSignal();
+    Mqtt_topic_status = Not_Recieved;
+  }
 }
