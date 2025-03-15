@@ -2,6 +2,7 @@
 #include "c_types.h"
 #include "IRModule.h"
 #include <Arduino.h>
+#include "MQTTManager.h"
 
 IRModule::IRModule(uint8_t recvPin, uint8_t sendPin) :
     irrecv(new IRrecv(recvPin)),
@@ -117,7 +118,7 @@ void IRModule::printJson() {
         Serial.println();
         Serial.println("Transmitter to IR/LEAR/ESP");
         serializeJson(*jsonCommand, jsonString);
-        MQTTManager::publish("IR/Learn/ESP", jsonString.c_str());
+        // MQTTManager::publish("IR/Learn/ESP", jsonString.c_str());
     }
 }
 

@@ -1,95 +1,41 @@
-#include <stdint.h>
 #include "MQTTManager.h"
-#include "WebServerManager.h"
 
-WiFiClient MQTTManager::espClient;
-PubSubClient MQTTManager::client(MQTTManager::espClient);
-MqttTopicStatus Mqtt_topic_status = Not_Recieved;
+// Initialize static members
+bool MQTTManager::ledBlinkFlag = false;
 StaticJsonDocument<128> jsonMQTTCommand;
 
-void MQTTManager::begin(const char* server, const char* user, const char* password) {
-  client.setServer(server, 1883);
-  client.setCallback(onMessageReceived);  // Attach the callback function
+MQTTManager::MQTTManager(const char* server, const char* user, const char* pass, const char* device_id, WiFiClient& client)
+    : _server(server), _user(user), _pass(pass), _device_id(device_id), _client(client) {
+    _client.setBufferSize(512);
+    _client.setServer(_server, 1883);
+    _client.setCallback(onMessageReceived); // Set callback
+    _client.subscribe("IR/Execute/HOAS"); // Subscribe to the topic
 }
 
-bool MQTTManager::reconnect() {
-  if (client.connect("ESP8266Client", WebServerManager::getMQTTUser(), WebServerManager::getMQTTPassword())) {
-    Serial.println("Connected to MQTT broker!");
-    client.subscribe("IR/Learn/HOAS");
-    client.subscribe("IR/Learn/ESP");
-    client.subscribe("IR/Execute/HOAS");
-    return true;
-  } else {
-    Serial.println("MQTT connection failed, retrying...");
-    delay(500);
-    return false;
-  }
-}
-
-void MQTTManager::loop() {
-  client.loop();
-}
-
-bool MQTTManager::isConnected() {
-  return client.connected();
-}
-
-void MQTTManager::publish(const char* topic, const char* message) {
-  if (client.connected()) {
-    if (client.publish(topic, message)) {
-      Serial.println("Message published to topic: " + String(topic));
-    } else {
-      Serial.println("Failed to publish message!");
+void MQTTManager::connect() {
+    while (!_client.connected()) {
+        Serial.print("Connecting to MQTT...");
+        if (_client.connect(_device_id, _user, _pass)) {
+            Serial.println("Connected!");
+            _client.subscribe("IR/Execute/HOAS"); // Re-subscribe after reconnect
+        } else {
+            Serial.print("Failed, rc=");
+            Serial.print(_client.state());
+            Serial.println(" retrying...");
+            delay(2000);
+        }
     }
-  } else {
-    Serial.println("MQTT client not connected!");
-  }
+}
+void MQTTManager::publish(const char* topic, const char* payload) {
+    if (_client.publish(topic, payload, false)) {
+        Serial.println("Message published successfully.");
+    } else {
+        Serial.println("Failed to publish message.");
+    }
 }
 
-// Callback function to handle incoming MQTT messages
-void MQTTManager::onMessageReceived(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Received message on topic: ");
-  Serial.println(topic);
-  Serial.print("Message: ");
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-
-  // Parse the payload into a JSON command
-  jsonMQTTCommand = MQTTManager::parsePayloadToJson(payload, length);  // Call the static function
-
-  if (jsonMQTTCommand.isNull()) {
-    Serial.println("Invalid JSON payload.");
-    return;
-  }
-
-  // Handle the topic and JSON command
-  if (strcmp(topic, "IR/Learn/HOAS") == 0) {
-    Serial.println("Executing IR Learn HOAS sequence...");
-    Mqtt_topic_status = Req;
-  }
-  //  else if (strcmp(topic, "IR/Learn/ESP") == 0) {
-  //   Serial.println("Executing IR Learn ESP sequence...");
-  //   Mqtt_topic_status = Learn;
-  // } 
-  else if (strcmp(topic, "IR/Execute/HOAS") == 0) {
-    Serial.println("Executing IR Execute HOAS sequence...");
-    Mqtt_topic_status = Execute;
-  } else {
-    Serial.println("Unknown topic received.");
-  }
-
-  // Print the JSON command for debugging
-  Serial.println("Parsed JSON Command:");
-  serializeJson(jsonMQTTCommand, Serial);
-  Serial.println();
-
-  char statusBuffer[10]; // Buffer to hold the string representation
-  itoa(Mqtt_topic_status, statusBuffer, 10); // Convert integer to string (base 10)
-
-  // Publish the status
-  MQTTManager::publish("Test/MQTT", statusBuffer);
+PubSubClient& MQTTManager::getClient() {
+    return _client;
 }
 
 // Implement the static function
@@ -101,15 +47,25 @@ StaticJsonDocument<128> MQTTManager::parsePayloadToJson(const byte* payload, uns
   for (unsigned int i = 0; i < length; i++) {
     payloadStr += (char)payload[i];
   }
-
   // Deserialize the JSON string into the JSON document
   DeserializationError error = deserializeJson(jsonDoc, payloadStr);
 
   if (error) {
     Serial.print("Failed to parse JSON: ");
     Serial.println(error.c_str());
-    return StaticJsonDocument<128>();  // Return an empty JSON document if parsing fails
+    return StaticJsonDocument<128>();  // Return empty doc on error
   }
 
   return jsonDoc;
+}
+// Callback to trigger LED blinking
+void MQTTManager::onMessageReceived(char* topic, byte* payload, unsigned int length) {
+    Serial.print("Received message on topic: ");
+    Serial.println(topic);
+    // Parse the payload into a JSON command
+    jsonMQTTCommand = MQTTManager::parsePayloadToJson(payload,length);  // Call the static function
+    // Blink LED if topic matches
+    if (strcmp(topic, "IR/Execute/HOAS") == 0) {
+        ledBlinkFlag = true;
+    }
 }

@@ -6,8 +6,6 @@
 #include <IRsend.h>
 #include <IRutils.h>
 #include <ArduinoJson.h>
-#include "MQTTManager.h"
-
 class IRModule {
 public:
     IRModule(uint8_t recvPin, uint8_t sendPin);
@@ -20,6 +18,7 @@ public:
 
     // Change the return type to String
     String getJsonCommand();
+    bool isListeningModeActive() const { return isListeningMode; }
 
 private:
     IRrecv* irrecv;
@@ -31,7 +30,7 @@ private:
     size_t signalCapacity;
     decode_type_t protocol;
     unsigned long lastSignalTime;
-    bool isListeningMode;
+    bool isListeningMode; 
     
     void addSignal(decode_type_t detectedProtocol, uint32_t rawData);
     void createJsonCommand();

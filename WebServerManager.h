@@ -1,23 +1,26 @@
-#ifndef WEBSERVERMANAGER_H
-#define WEBSERVERMANAGER_H
+#ifndef WEB_SERVER_MANAGER_H
+#define WEB_SERVER_MANAGER_H
 
 #include <ESP8266WebServer.h>
+#include "ButtonManager.h"
+#include "IRModule.h"
 
 class WebServerManager {
 public:
-  static void begin();
-  static void handleClient();
-  static bool isConfigReceived();
-  static const char* getMQTTUser(); // Declare as static
-  static const char* getMQTTPassword(); // Declare as static
+    WebServerManager(ButtonManager& buttonManager, IRModule& irModule);
+    void begin();
+    void handleClient();
 
 private:
-  static void handleRoot();
-  static void handleSave();
-  static ESP8266WebServer server;
-  static bool configReceived;
-  static const char* mqtt_user;
-  static const char* mqtt_password;
+    ESP8266WebServer _server;
+    ButtonManager& _buttonManager;
+    IRModule& _irModule;
+    String _pendingButtonName;
+    bool _isWaitingForIR;
+
+    void handleRoot();
+    void handleAdd();
+    void handleCheckIR();
 };
 
 #endif

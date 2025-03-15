@@ -1,37 +1,28 @@
-#ifndef MQTTMANAGER_H
-#define MQTTMANAGER_H
+#ifndef MQTT_MANAGER_H
+#define MQTT_MANAGER_H
 
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
-
-typedef enum
-{
-  Not_Recieved = 0,
-  Req,
-  Learn,
-  Execute
-} MqttTopicStatus;
-
 extern StaticJsonDocument<128> jsonMQTTCommand;
 
 class MQTTManager {
 public:
-  static void begin(const char* server, const char* user, const char* password);
-  static bool reconnect();
-  static void loop();
-  static bool isConnected();
-  static void publish(const char* topic, const char* message);
-
-  // Declare the function as static
-  static StaticJsonDocument<128> parsePayloadToJson(const byte* payload, unsigned int length);
+    MQTTManager(const char* server, const char* user, const char* pass, const char* device_id, WiFiClient& client);
+    void connect();
+    void publish(const char* topic, const char* payload);
+    PubSubClient& getClient();
+    static StaticJsonDocument<128> parsePayloadToJson(const byte* payload, unsigned int length);
+    // Static members for LED control
+    static bool ledBlinkFlag;
 
 private:
-  static WiFiClient espClient;
-  static PubSubClient client;
-  static void onMessageReceived(char* topic, byte* payload, unsigned int length);
+    const char* _server;
+    const char* _user;
+    const char* _pass;
+    const char* _device_id;
+    PubSubClient _client;
+    static void onMessageReceived(char* topic, byte* payload, unsigned int length);
 };
-
-extern MqttTopicStatus Mqtt_topic_status;
 
 #endif

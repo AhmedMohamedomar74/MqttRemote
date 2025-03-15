@@ -1,15 +1,16 @@
-#ifndef WIFIMANAGER_H
-#define WIFIMANAGER_H
+#ifndef WIFI_MANAGER_H
+#define WIFI_MANAGER_H
 
 #include <ESP8266WiFi.h>
 
 class WiFiManager {
 public:
-  static void begin();
-  static bool connect(const char* ssid, const char* password);
-  static void disconnectAP();
-  static void enableAP();
-  static bool isConnected();
+    WiFiManager(const char* ssid, const char* password);
+    void connect();
+
+private:
+    const char* _ssid;
+    const char* _password;
 };
 
 #endif

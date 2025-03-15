@@ -1,121 +1,107 @@
 #include "WebServerManager.h"
-#include "WiFiManager.h"
-#include "MQTTManager.h"
 
-
-
-ESP8266WebServer WebServerManager::server(80);
-bool WebServerManager::configReceived = false;
-const char* WebServerManager::mqtt_user = "";
-const char* WebServerManager::mqtt_password = "";
-
-const char* html_form = R"rawliteral(
-<!DOCTYPE HTML>
-<html>
-<head>
-  <title>ESP8266 Configuration</title>
-</head>
-<body>
-  <h1>ESP8266 Configuration</h1>
-  <form action="/save" method="POST">
-    <label for="ssid">WiFi SSID:</label><br>
-    <input type="text" id="ssid" name="ssid"><br>
-    <label for="password">WiFi Password:</label><br>
-    <input type="password" id="password" name="password"><br>
-    <label for="mqtt_server">MQTT Broker:</label><br>
-    <input type="text" id="mqtt_server" name="mqtt_server"><br>
-    <label for="mqtt_user">MQTT Username:</label><br>
-    <input type="text" id="mqtt_user" name="mqtt_user"><br>
-    <label for="mqtt_password">MQTT Password:</label><br>
-    <input type="password" id="mqtt_password" name="mqtt_password"><br><br>
-    <input type="submit" value="Save and Connect">
-  </form>
-</body>
-</html>
-)rawliteral";
+WebServerManager::WebServerManager(ButtonManager& buttonManager, IRModule& irModule)
+    : _buttonManager(buttonManager), _irModule(irModule), _isWaitingForIR(false) {}
 
 void WebServerManager::begin() {
-  server.on("/", handleRoot);
-  server.on("/save", handleSave);
-  server.begin();
+    _server.on("/", HTTP_GET, [this]() { handleRoot(); });
+    _server.on("/add", HTTP_POST, [this]() { handleAdd(); });
+    _server.on("/check_ir", HTTP_GET, [this]() { handleCheckIR(); });
+    _server.begin();
 }
 
 void WebServerManager::handleClient() {
-  server.handleClient();
-}
-
-bool WebServerManager::isConfigReceived() {
-  return configReceived;
-}
-
-const char* WebServerManager::getMQTTUser() {
-  return mqtt_user;
-}
-
-const char* WebServerManager::getMQTTPassword() {
-  return mqtt_password;
+    _server.handleClient();
 }
 
 void WebServerManager::handleRoot() {
-  server.send(200, "text/html", html_form);
+    _server.send(200, "text/html", R"rawliteral(
+        <html>
+        <head>
+            <script>
+              function addButton() {
+                  var buttonName = document.getElementById("button_name").value;
+                  var xhr = new XMLHttpRequest();
+                  xhr.open("POST", "/add", true);
+                  xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                  xhr.onreadystatechange = function() {
+                      if (xhr.readyState == 4) {
+                          if (xhr.status == 200) {
+                              var response = JSON.parse(xhr.responseText);
+                              if (response.message.includes("press")) {
+                                  pollIRStatus();
+                              } else {
+                                  document.getElementById("response").innerHTML = response.message;
+                              }
+                          }
+                      }
+                  };
+                  xhr.send("button_name=" + encodeURIComponent(buttonName));
+              }
+
+              function pollIRStatus() {
+                  var checkXhr = new XMLHttpRequest();
+                  checkXhr.open("GET", "/check_ir", true);
+                  checkXhr.onreadystatechange = function() {
+                      if (checkXhr.readyState == 4 && checkXhr.status == 200) {
+                          var response = JSON.parse(checkXhr.responseText);
+                          document.getElementById("response").innerHTML = response.message;
+                          if (response.message.includes("Waiting")) {
+                              setTimeout(pollIRStatus, 1000);
+                          }
+                      }
+                  };
+                  checkXhr.send();
+              }
+          </script>
+        </head>
+        <body>
+            <h2>Enter Button Name</h2>
+            <form id="button_form" onsubmit="event.preventDefault(); addButton();">
+                <input type="text" id="button_name" name="button_name" required>
+                <input type="submit" value="Add Button">
+            </form>
+            <div id="response"></div>
+        </body>
+        </html>
+    )rawliteral");
 }
 
-void WebServerManager::handleSave() {
-  const char* ssid = server.arg("ssid").c_str();
-  const char* password = server.arg("password").c_str();
-  const char* mqtt_server = server.arg("mqtt_server").c_str();
-  mqtt_user = server.arg("mqtt_user").c_str();
-  mqtt_password = server.arg("mqtt_password").c_str();
+void WebServerManager::handleAdd() {
+    if (_server.hasArg("button_name")) {
+        _pendingButtonName = _server.arg("button_name");
+        _irModule.startListening();
+        _isWaitingForIR = true;
 
-  // Attempt to connect to Wi-Fi
-  if (WiFiManager::connect(ssid, password)) {
-    Serial.println("Wi-Fi connected successfully!");
-
-    // Close the AP since Wi-Fi is connected
-    WiFiManager::disconnectAP();
-    Serial.println("Access Point closed.");
-
-    // Initialize MQTT
-    MQTTManager::begin(mqtt_server, mqtt_user, mqtt_password);
-
-    // Attempt to connect to MQTT broker in a loop
-    bool mqttConnected = false;
-    while (!mqttConnected) {
-      if (MQTTManager::reconnect()) {
-        Serial.println("MQTT connected successfully!");
-        mqttConnected = true;
-        configReceived = true;
-        server.send(200, "text/plain", "Configuration saved and connected!");
-      } else {
-        Serial.println("MQTT connection failed. Reopening AP for reconfiguration...");
-
-        // Reopen AP to allow reconfiguration
-        WiFiManager::enableAP();
-        Serial.println("Access Point reopened.");
-
-        // Wait for new configuration from the user
-        while (true) {
-          server.handleClient(); // Keep handling client requests
-          if (server.client()) { // Check if a client is connected
-            break; // Exit the loop when a new client connects
-          }
-          delay(100);
-        }
-
-        // Get new MQTT details from the user
-        mqtt_server = server.arg("mqtt_server").c_str();
-        mqtt_user = server.arg("mqtt_user").c_str();
-        mqtt_password = server.arg("mqtt_password").c_str();
-
-        // Reinitialize MQTT with new details
-        MQTTManager::begin(mqtt_server, mqtt_user, mqtt_password);
-      }
+        StaticJsonDocument<200> jsonResponse;
+        jsonResponse["message"] = "Please press the IR remote button now...";
+        String response;
+        serializeJson(jsonResponse, response);
+        _server.send(200, "application/json", response);
+    } else {
+        _server.send(400, "application/json", "{\"message\":\"Missing button name\"}");
     }
-  } else {
-    Serial.println("Wi-Fi connection failed!");
+}
 
-    // Re-enable AP to allow reconfiguration
-    WiFiManager::enableAP();
-    server.send(200, "text/plain", "Failed to connect to Wi-Fi. Please reconfigure.");
-  }
+void WebServerManager::handleCheckIR() {
+    if (_isWaitingForIR && !_irModule.isListeningModeActive()) {
+        String payload = _irModule.getJsonCommand();
+        if (payload.length() > 0) {
+            _buttonManager.registerButton(_pendingButtonName, payload);
+            _isWaitingForIR = false;
+            StaticJsonDocument<200> jsonResponse;
+            jsonResponse["message"] = "Button registered: " + _pendingButtonName;
+            String response;
+            serializeJson(jsonResponse, response);
+            _server.send(200, "application/json", response);
+        } else {
+            _server.send(500, "application/json", "{\"message\":\"No IR command received\"}");
+        }
+    } else {
+        StaticJsonDocument<200> jsonResponse;
+        jsonResponse["message"] = "Waiting for IR signal...";
+        String response;
+        serializeJson(jsonResponse, response);
+        _server.send(200, "application/json", response);
+    }
 }
