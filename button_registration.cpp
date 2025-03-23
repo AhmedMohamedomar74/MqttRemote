@@ -56,28 +56,15 @@ void registerButton(const char* _device_id, const String& button_name, uint16_t*
 }
 
 void saveButtonCounter() {
-    EEPROM.put(4, _button_counter);  // Store the counter at address 4
-    EEPROM.commit();  // Commit the changes
+  EEPROM.put(0, _button_counter);  // Save the counter at address 0
+  EEPROM.commit();  // Commit the changes to EEPROM
 }
 
 
 void loadButtonCounter() {
-    EEPROM.begin(4);  // Initialize EEPROM
-    
-    int magic_number;
-    EEPROM.get(0, magic_number);  // Read stored magic number
-
-    if (magic_number != 0xA5A5A5A5) {  // Check if EEPROM is uninitialized
-        Serial.println("First boot detected! Resetting counter...");
-        _button_counter = 1;  // Start from 1
-        EEPROM.put(0, 0xA5A5A5A5);  // Store magic number
-        EEPROM.put(4, _button_counter);  // Save initial counter
-        EEPROM.commit();  // Commit changes
-    } else {
-        EEPROM.get(4, _button_counter);  // Load existing counter
-        if (_button_counter < 1) {
-            _button_counter = 1;  // Ensure valid range
-        }
+    EEPROM.get(0, _button_counter);  // Load the counter from address 0
+    if (_button_counter < 1) {
+        _button_counter = 1;  // Ensure the counter is at least 1
     }
 }
 
