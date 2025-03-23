@@ -41,7 +41,7 @@ void registerButton(const char* _device_id, const String& button_name, uint16_t*
     Serial.print("Payload: ");
     Serial.println(payload);
 
-    if (client.publish(discovery_topic.c_str(), payload.c_str(), false)) {
+    if (client.publish(discovery_topic.c_str(), payload.c_str(), true)) {
         Serial.println("Payload published to Home Assistant");
 
         _button_counter++;  // Increment after successful publish

@@ -13,7 +13,7 @@ void setupIR() {
 }
 
 void processIRSignal() {
-  if (irrecv.decode(&results)) {
+  if (irrecv.decode(&results) && (executionState == "Waiting For IR")) {
     if (RecRawBuff) {
       delete[] RecRawBuff;
     }

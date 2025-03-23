@@ -6,6 +6,7 @@
 #include <IRutils.h>
 #include <IRremoteESP8266.h>
 #include <IRsend.h>
+#include "web_server.h"
 
 #define kRecvPin D3
 #define kTrenPin D2  // Renamed to avoid conflict
