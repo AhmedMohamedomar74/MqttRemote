@@ -82,16 +82,29 @@ void handleRoot() {
 }
 
 void handleRegister() {
-    if (server.hasArg("button_name")) {
+     if (server.hasArg("button_name")) {
         registeredButtonName = server.arg("button_name");
         Serial.println("Received button name: " + registeredButtonName);
         
-        buttonRegistered = true;
-        executionState = "Waiting For IR"; // Update state to Executing
-
-        server.send(200, "text/plain", "Button Registered: " + registeredButtonName);
+        EEPROM_Status status = storeStringIfNotExists(registeredButtonName);
+        
+        if (status == EEPROM_SUCCESS) {
+            buttonRegistered = true;
+            executionState = "Waiting For IR";
+            server.send(200, "text/plain", "Button Registered: " + registeredButtonName);
+        } else if (status == EEPROM_DUPLICATE) {
+            executionState = "Error: Duplicate button name";
+            server.send(200, "text/plain", executionState);
+        } else if (status == EEPROM_NO_SPACE) {
+            executionState = "Error: EEPROM full";
+            server.send(200, "text/plain", executionState);
+        } else {
+            executionState = "Error: Unknown error";
+            server.send(500, "text/plain", executionState);
+        }
     } else {
-        server.send(400, "text/plain", "Missing button_name");
+        executionState = "Error: Missing button name";
+        server.send(400, "text/plain", executionState);
     }
 }
 

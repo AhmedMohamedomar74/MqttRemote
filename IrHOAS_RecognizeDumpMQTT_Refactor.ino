@@ -25,7 +25,7 @@ void setup() {
   maintainMQTTConnection();
   setupIR();
   setupWebServer();
-  EEPROM.begin(4);  // Initialize EEPROM
+  EEPROMStorage_begin();
   loadButtonCounter();  // Load the last saved button counter value
 }
 

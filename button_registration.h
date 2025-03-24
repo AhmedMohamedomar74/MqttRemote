@@ -3,7 +3,7 @@
 
 #include <ArduinoJson.h>
 #include "wifi_mqtt.h"
-#include <EEPROM.h>  // Include EEPROM library
+#include "EEPROMStringStorage.h"
 
 extern int _button_counter;
 extern const char* _device_id;
