@@ -7,16 +7,19 @@
 void executeTask() {
     Serial.println("Executing operation for button: " + registeredButtonName);
     Serial.println("State updated to Done");
+
     if (RecRawBuff && (!RecBufferUint16Flag)) {
       registerButton(_device_id, registeredButtonName, RecRawBuff, results.rawlen - 1);
       delete[] RecRawBuff;
       RecRawBuff = nullptr;
     }
+
     buttonRegistered = false; // Reset flag    
     Serial.println("Execution completed.");
-    executionState = "Done";  // Update to Done
-  
+    
+    executionState = "Task Completed"; // Now modifies the global variable
 }
+
 
 void setup() {
   Serial.begin(115200);
@@ -37,7 +40,28 @@ void loop() {
   if (buttonRegistered && executionState == "Waiting For IR" && RecivedSignal) {
         executeTask();
         RecivedSignal = false;
-        executionState = "Waiting";  // Reset state after execution
+        // delay(500);
+        if (executionState == "Task Completed") {
+          // executionState = "Waiting";
+          Serial.println("buttonRegistered and executionState = Waiting For IR");
+        }
+    }
+   if(testFlag) {
+        testFlag = false;
+        // Call your test function
+        Serial.println("Test button pressed");
+    }
+    
+    if(yesFlag) {
+        yesFlag = false;
+        // Handle yes action
+        Serial.println("Yes button pressed");
+    }
+    
+    if(noFlag) {
+        noFlag = false;
+        // Handle no action
+        Serial.println("No button pressed");
     }
   
 }

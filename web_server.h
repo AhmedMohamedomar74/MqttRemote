@@ -9,8 +9,11 @@ extern bool buttonRegistered;
 extern bool executionInProgress;
 extern String registeredButtonName;
 extern String executionState;
+extern bool testFlag;
+extern bool yesFlag;
+extern bool noFlag;
 
 void setupWebServer();
 void handleWebRequests();
-
+void handleState();
 #endif
