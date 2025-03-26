@@ -31,3 +31,53 @@ EEPROM_Status storeStringIfNotExists(const String &str) {
     EEPROM.commit();
     return EEPROM_SUCCESS;
 }
+
+EEPROM_Status deleteStringFromEEPROM(const String &str) {
+    int startIdx = -1;
+    int endIdx = -1;
+    bool found = false;
+
+    // Search for the string in EEPROM
+    for (int i = START_ADDRESS; i < EEPROM_SIZE; i++) {
+        String storedStr = "";
+        int j = i;
+
+        // Read characters until we find '\0' (end of string)
+        while (j < EEPROM_SIZE) {
+            char c = EEPROM.read(j);
+            if (c == '\0' || c == 0xFF) break;
+            storedStr += c;
+            j++;
+        }
+
+        if (storedStr == str) {
+            startIdx = i;
+            endIdx = j;  // Position of null terminator
+            found = true;
+            break;
+        }
+
+        i = j;  // Move to the next string
+    }
+
+    if (!found) {
+        return EEPROM_NOT_FOUND;
+    }
+
+    int remainingBytes = EEPROM_SIZE - endIdx - 1;
+
+    // Shift remaining data forward
+    for (int i = startIdx; i < startIdx + remainingBytes; i++) {
+        char nextChar = EEPROM.read(endIdx + (i - startIdx));
+        EEPROM.write(i, nextChar);
+    }
+
+    // Fill the remaining space with 0xFF (erase)
+    for (int i = EEPROM_SIZE - (endIdx - startIdx); i < EEPROM_SIZE; i++) {
+        EEPROM.write(i, 0xFF);
+    }
+
+    EEPROM.commit();
+    return EEPROM_SUCCESS;
+}
+

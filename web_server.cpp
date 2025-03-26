@@ -58,20 +58,34 @@ void handleRoot() {
           });
       }
 
-      function showNotification() {
-      let popup = document.createElement("div");
-      popup.innerHTML = `
-          <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
-                      background:white; padding:20px; box-shadow:0px 0px 10px rgba(0,0,0,0.2);
-                      text-align:center; border-radius:10px; z-index: 1000;">
-              <p>Click test to test the new button. If it works right click YES, otherwise click NO</p>
-              <button onclick="handleTest()">Test</button>
-              <button onclick="handleYes()">Yes</button>
-              <button onclick="handleNo()">No</button>
-          </div>`;
-      document.body.appendChild(popup);
-  }
-  function handleTest() {
+function showNotification() {
+    // Check if popup already exists
+    if(document.getElementById("notificationPopup")) return;
+    
+    let popup = document.createElement("div");
+    popup.innerHTML = `
+        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+                    background:white; padding:20px; box-shadow:0px 0px 10px rgba(0,0,0,0.2);
+                    text-align:center; border-radius:10px; z-index: 1000;" id="notificationPopup">
+            <p>Click test to test the new button. If it works right click YES, otherwise click NO</p>
+            <button onclick="handleTest()">Test</button>
+            <button onclick="closePopupAndHandle('/yes')">Yes</button>
+            <button onclick="closePopupAndHandle('/no')">No</button>
+        </div>`;
+    document.body.appendChild(popup);
+}
+
+function closePopupAndHandle(endpoint) {
+    const popup = document.getElementById("notificationPopup");
+    if(popup) {
+        popup.remove(); // Immediate removal
+        fetch(endpoint, { method: 'POST' })
+          .then(response => response.text())
+          .then(data => console.log("Response:", data))
+          .catch(error => console.error("Error:", error));
+    }
+}    
+function handleTest() {
     fetch('/test', { method: 'POST' })
     .then(response => response.text())
     .then(data => console.log("Test result:", data))
@@ -148,7 +162,8 @@ void handleRegister() {
 }
 
 void handleState() {
-    server.send(200, "text/plain", executionState);
+  // Serial.println("Sending state: " + executionState); // Debug log
+  server.send(200, "text/plain", executionState);
 }
 
 

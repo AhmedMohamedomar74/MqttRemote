@@ -4,7 +4,7 @@ int _button_counter = 1;
 const char* _device_id = "esp8266_device";
 
 void registerButton(const char* _device_id, const String& button_name, uint16_t* payload_press, size_t payload_size) {
-    loadButtonCounter();  // Load the counter from EEPROM
+      loadButtonCounter();  // Load the counter from EEPROM
       String button_id = "button_" + String(_button_counter);
       String unique_id = String(_device_id) + "_" + button_id;
       String command_topic = "IR/Execute/HOAS";
@@ -17,6 +17,8 @@ void registerButton(const char* _device_id, const String& button_name, uint16_t*
 
       String payloadPressStr;
       payloadPressStr.reserve(50);
+      Serial.print("Size in Regiser button = ");
+      Serial.println(payload_size);
       payloadPressStr = "[";
       for (size_t i = 0; i < payload_size; i++) {
           payloadPressStr += String(payload_press[i]);

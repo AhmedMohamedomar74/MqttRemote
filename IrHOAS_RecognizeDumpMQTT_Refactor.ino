@@ -13,10 +13,8 @@ void executeTask() {
       delete[] RecRawBuff;
       RecRawBuff = nullptr;
     }
-
     buttonRegistered = false; // Reset flag    
     Serial.println("Execution completed.");
-    
     executionState = "Task Completed"; // Now modifies the global variable
 }
 
@@ -38,30 +36,50 @@ void loop() {
   client.loop();
   processIRSignal();
   if (buttonRegistered && executionState == "Waiting For IR" && RecivedSignal) {
-        executeTask();
+        // executeTask();
         RecivedSignal = false;
         // delay(500);
-        if (executionState == "Task Completed") {
-          // executionState = "Waiting";
-          Serial.println("buttonRegistered and executionState = Waiting For IR");
-        }
+        buttonRegistered = false;
+        executionState = "Task Completed";
     }
    if(testFlag) {
         testFlag = false;
-        // Call your test function
+        irsend.sendRaw(RecRawBuff, results.rawlen - 1, 36);
+        Serial.print("Length of the arr = ");
+        Serial.println(results.rawlen - 1);
+        Serial.print("Recived Buffer in test = ");
+        for (int i = 0; i < results.rawlen - 1; i++) {
+          Serial.print(RecRawBuff[i]);
+          Serial.print(" ,");
+        }
+        Serial.println();
         Serial.println("Test button pressed");
     }
     
     if(yesFlag) {
         yesFlag = false;
         // Handle yes action
+        registerButton(_device_id, registeredButtonName, RecRawBuff,(results.rawlen - 1));
+        delete[] RecRawBuff;
+        RecRawBuff = nullptr;
+        executionState = "Waiting";
         Serial.println("Yes button pressed");
     }
     
     if(noFlag) {
         noFlag = false;
         // Handle no action
+        delete[] RecRawBuff;
+        RecRawBuff = nullptr;
+        executionState = "Waiting";
+         // Delete from EEPROM
+        EEPROM_Status status = deleteStringFromEEPROM(registeredButtonName);
+        if(status == EEPROM_SUCCESS) {
+            Serial.println("Deleted from EEPROM: " + registeredButtonName);
+        } else {
+            Serial.println("EEPROM deletion failed. Error code: " + String(status));
+        }
+        registeredButtonName = "";  // Clear the name
         Serial.println("No button pressed");
-    }
-  
+    } 
 }
